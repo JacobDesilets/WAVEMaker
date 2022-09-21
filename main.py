@@ -23,7 +23,7 @@ def make_header(fmt, sample_rate, bits_per_sample, n_channels, n_samples):
     header += chunk_size.to_bytes(length=4, byteorder='little')
     header += bytes('WAVE', 'ascii')
     header += bytes('fmt ', 'ascii')
-
+    header += int(16).to_bytes(length=4, byteorder='little')
 
 
 def main():
