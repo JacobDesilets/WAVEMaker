@@ -1,7 +1,5 @@
 import argparse
 import math
-from itertools import count
-import numpy as np
 from pathlib import Path
 import sys
 from time import perf_counter
@@ -28,27 +26,31 @@ def get_sin_wave_generator(freq, sample_rate, amplitude):
 def get_sin_channel(freq, sample_rate, amplitude, n_samples, bits_per_sample):
     sin_generator = get_sin_wave_generator(freq, sample_rate, amplitude)
     max_amplitude = ((1 << bits_per_sample) / 2) - 1
-    channel = []
+    # channel = []
+    channel = bytearray()
 
     for i in range(n_samples):
-        channel.append(int(max_amplitude * next(sin_generator)))
+        channel.extend(int(max_amplitude * next(sin_generator)).to_bytes(bits_per_sample, 'little', signed=True))
 
     return channel
 
 
 def get_channels(n_channels, sample_rate, bits_per_sample, n_samples, mode='sine'):
+
     if mode != 'sine':
         sys.exit('Not yet implemented')
     else:
-        data = []
+        data = bytearray()
         channels = []
         for i in range(n_channels):
-            channels.append(get_sin_channel(10, sample_rate, 1, n_samples, bits_per_sample))
-
+            c = bytes(get_sin_channel(10000, sample_rate, 1, n_samples, bits_per_sample))
+            channels.append([c[k:k+bits_per_sample] for k in range(0, len(c), bits_per_sample)])
+        start = perf_counter()
         for i in range(n_samples):
             for channel in channels:
-                data.append(channel[i])
+                data.extend(channel[i])
 
+        print(f'get_channels() took: {perf_counter() - start}')
         return data
 
 
@@ -75,12 +77,16 @@ def get_header_chunk(fmt, sample_rate, bits_per_sample, n_channels, n_samples):
 
 
 def get_pcm_data_chunk(sample_rate, bits_per_sample, n_channels, n_samples):
+
     data = bytes('data', 'ascii')
     data += (n_samples * n_channels * bits_per_sample // 8).to_bytes(length=4, byteorder='little')
     samples = get_channels(n_channels, sample_rate, bits_per_sample, n_samples)
-    for sample in samples:
-        data += sample.to_bytes(bits_per_sample, 'little', signed=True)
+    start = perf_counter()
+    # for sample in samples:
+    #     data += sample
+    data += bytes(samples)
 
+    print(f'get_pcm_data_chunk() took: {perf_counter() - start}')
     return data
 
 
@@ -96,7 +102,7 @@ def make_file(fname, sample_rate, bits_per_sample, n_channels, duration):
 def main():
     # args = vars(get_args())
     start = perf_counter()
-    make_file('test.wav', 44100, 16, 1, 1)
+    make_file('test.wav', 44100, 16, 3, 5)
     stop = perf_counter()
     print(f'Time taken: {stop - start}')
 
