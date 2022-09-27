@@ -19,6 +19,11 @@ class Wave:
         self.np_dt = f'<i{int(self.bit_depth_rounded / 8)}'
         self.data = np.zeros((self.n_samples, self.n_channels), dtype=self.np_dt)
 
+    def white_noise(self):
+        max_amplitude = ((1 << self.bit_depth) / 2) - 1
+        r = (np.random.uniform(-1, 1, (self.n_samples, self.n_channels)) * max_amplitude).astype(self.np_dt)
+        self.data = r
+
     def get_header_chunk(self):
         chunk = bytes('RIFF', 'ascii')
         chunk_size = 36 + (self.n_samples * self.n_channels * self.bit_depth_rounded // 8)
@@ -39,7 +44,8 @@ class Wave:
             chunk += byte_rate.to_bytes(length=4, byteorder='little')
             block_align = (self.n_channels * self.bit_depth_rounded // 8)
             chunk += block_align.to_bytes(length=2, byteorder='little')
-            chunk += self.bit_depth_rounded.to_bytes(length=2, byteorder='little')
+            # chunk += self.bit_depth_rounded.to_bytes(length=2, byteorder='little')
+            chunk += self.bit_depth.to_bytes(length=2, byteorder='little')
         else:
             sys.exit('Non-PCM compression not yet implemented')
             # TODO: Implement
@@ -74,7 +80,8 @@ def get_args():
 
 def main():
     start = perf_counter()
-    wavemaker = Wave(bit_depth=64, n_channels=2, duration=3)
+    wavemaker = Wave(bit_depth=16, n_channels=2, duration=3)
+    wavemaker.white_noise()
     wavemaker.make_file('test2.wav')
     print(f'Finished in {perf_counter() - start} seconds.')
 
