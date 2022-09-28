@@ -35,7 +35,7 @@ class Wave:
     def get_fmt_chunk(self):
         chunk = bytes('fmt ', 'ascii')
 
-        if self.fmt == 'PCM':
+        if self.fmt == 'PCM' or self.fmt == 'PCM-wavl':
             chunk += int(16).to_bytes(length=4, byteorder='little')
             chunk += int(1).to_bytes(length=2, byteorder='little')
             chunk += self.n_channels.to_bytes(length=2, byteorder='little')
@@ -44,12 +44,42 @@ class Wave:
             chunk += byte_rate.to_bytes(length=4, byteorder='little')
             block_align = (self.n_channels * self.bit_depth_rounded // 8)
             chunk += block_align.to_bytes(length=2, byteorder='little')
+            # TODO: Figure out which one???
             # chunk += self.bit_depth_rounded.to_bytes(length=2, byteorder='little')
             chunk += self.bit_depth.to_bytes(length=2, byteorder='little')
         else:
             sys.exit('Non-PCM compression not yet implemented')
             # TODO: Implement
 
+        return chunk
+
+    def get_fact_chunk(self, n_samples_overwrite=0) -> bytes:
+        chunk = bytes('fact', 'ascii')
+        chunk += int(4).to_bytes(length=4, byteorder='little')
+        if n_samples_overwrite:
+            chunk += n_samples_overwrite.to_bytes(length=4, byteorder='little')
+        else:
+            chunk += self.n_samples.to_bytes(length=4, byteorder='little')
+
+        return chunk
+
+    def get_slnt_chunk(self, n_silent_samples: int) -> bytes:
+        chunk = bytes('slnt', 'ascii')
+        chunk += int(4).to_bytes(length=4, byteorder='little')
+        chunk += n_silent_samples.to_bytes(length=4, byteorder='little')
+
+        return chunk
+
+    def get_wavl_chunk(self, n_silent_samples=20000, no_data=False) -> bytes:
+        chunk = bytes('LIST', 'ascii')
+        subchunks = self.get_slnt_chunk(n_silent_samples)
+        if not no_data:
+            subchunks += self.get_pcm_data_chunk()
+
+        chunk_size = len(subchunks)
+        chunk += chunk_size.to_bytes(length=4, byteorder='little')
+        chunk += bytes('wavl', 'ascii')
+        chunk += subchunks
         return chunk
 
     def get_pcm_data_chunk(self):
@@ -68,21 +98,23 @@ class Wave:
             f.write(self.get_fmt_chunk())
             if self.fmt == 'PCM':
                 f.write(self.get_pcm_data_chunk())
+            elif self.fmt == 'PCM-wavl':
+                f.write(self.get_wavl_chunk())
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='WAVE Maker')
     parser.add_argument('file', metavar='File', type=str, nargs=1, help='WAVE file to work on')
-    parser.add_argument('-c', metavar='Comp', type=int, nargs='?', const=1, help='Compression format (1 is PCM and default)')
+    parser.add_argument('-f', metavar='Format', type=str, nargs='?', const='PCM', help='Compression format (1 is PCM and default)')
 
     return parser.parse_args()
 
 
 def main():
     start = perf_counter()
-    wavemaker = Wave(bit_depth=16, n_channels=2, duration=3)
+    wavemaker = Wave(bit_depth=16, n_channels=2, duration=3, fmt='PCM-wavl')
     wavemaker.white_noise()
-    wavemaker.make_file('test2.wav')
+    wavemaker.make_file('test3.wav')
     print(f'Finished in {perf_counter() - start} seconds.')
 
 
