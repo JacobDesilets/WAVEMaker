@@ -82,6 +82,13 @@ class Wave:
         chunk += subchunks
         return chunk
 
+    def get_plst_chunk(self, n_cues):
+        chunk = bytes('plst', 'ascii')
+        chunk_size = n_cues * 12
+        chunk += chunk_size.to_bytes(length=4, byteorder='little')
+
+        return chunk
+
     def get_pcm_data_chunk(self):
         chunk = bytes('data', 'ascii')
         chunk_size = int(self.n_samples * self.n_channels * self.bit_depth_rounded / 8)
