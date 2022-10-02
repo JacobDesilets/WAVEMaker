@@ -53,7 +53,7 @@ class Wave:
 
         return chunk
 
-    def get_fact_chunk(self, n_samples_overwrite=0) -> bytes:
+    def get_fact_chunk(self, n_samples_overwrite=0):
         chunk = bytes('fact', 'ascii')
         chunk += int(4).to_bytes(length=4, byteorder='little')
         if n_samples_overwrite:
@@ -63,7 +63,7 @@ class Wave:
 
         return chunk
 
-    def get_slnt_chunk(self, n_silent_samples: int) -> bytes:
+    def get_slnt_chunk(self, n_silent_samples: int):
         chunk = bytes('slnt', 'ascii')
         chunk += int(4).to_bytes(length=4, byteorder='little')
         chunk += n_silent_samples.to_bytes(length=4, byteorder='little')
@@ -81,6 +81,10 @@ class Wave:
         chunk += bytes('wavl', 'ascii')
         chunk += subchunks
         return chunk
+
+    def get_cue_chunk(self, chunk_id_overwrite='cue '):
+        chunk = bytes(chunk_id_overwrite, 'ascii')
+
 
     def get_plst_chunk(self, n_cues):
         chunk = bytes('plst', 'ascii')
