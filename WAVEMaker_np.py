@@ -82,8 +82,12 @@ class Wave:
         chunk += subchunks
         return chunk
 
-    def get_cue_chunk(self, chunk_id_overwrite='cue '):
+    def get_cue_chunk(self, n_cues, chunk_id_overwrite='cue '):
         chunk = bytes(chunk_id_overwrite, 'ascii')
+        chunk_size = 4
+
+        for i in range(n_cues):
+            cue_point = bytes()
 
 
     def get_plst_chunk(self, n_cues):
