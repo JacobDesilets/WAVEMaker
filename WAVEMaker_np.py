@@ -87,13 +87,33 @@ class Wave:
         chunk_size = 4
 
         for i in range(n_cues):
-            cue_point = bytes()
-
+            cue_point = i.to_bytes(length=4, byteorder='little')        # dwName
+            cue_point += i.to_bytes(length=4, byteorder='little')       # dwPosition (sample # for the cue)
+            cue_point += bytes('data', 'ascii')                         # fccChunk (data or slnt, depending on where the cue occurs)
+            cue_point += int(0).to_bytes(length=4, byteorder='little')  # dwChunkStart (0 if no wavl chunk present)
 
     def get_plst_chunk(self, n_cues):
         chunk = bytes('plst', 'ascii')
         chunk_size = n_cues * 12
         chunk += chunk_size.to_bytes(length=4, byteorder='little')
+
+        return chunk
+
+    def get_junk_chunk(self, hidden_text):
+        chunk = bytes('JUNK', 'ascii')
+        text_bytes = bytes(hidden_text, 'ascii')
+        chunk_size = len(text_bytes)
+        chunk += chunk_size.to_bytes(length=4, byteorder='little')
+        chunk += text_bytes
+
+        return chunk
+
+    def get_pad_chunk(self, hidden_text):
+        chunk = bytes('PAD ', 'ascii')
+        text_bytes = bytes(hidden_text, 'ascii')
+        chunk_size = len(text_bytes)
+        chunk += chunk_size.to_bytes(length=4, byteorder='little')
+        chunk += text_bytes
 
         return chunk
 
