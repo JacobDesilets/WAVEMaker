@@ -4,8 +4,8 @@ from pathlib import Path
 from bitarray import bitarray
 
 
-def read_steg(fname):
-    fp = Path(fname)
+def read_steg(fname, output):
+    with open(output, 'wb') as of
     with wave.open(fname, 'rb') as wf:
         data = wf.readframes(wf.getnframes())
         text = bitarray()
@@ -26,7 +26,7 @@ def read_steg(fname):
 
 
 def main():
-    read_steg('steg.wav')
+    read_steg('speech.wav')
 
 
 if __name__ == '__main__':
