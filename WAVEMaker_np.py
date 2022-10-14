@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 from time import perf_counter
 import numpy as np
+from bitarray import bitarray
 
 
 class Wave:
@@ -117,12 +118,20 @@ class Wave:
 
         return chunk
 
-    def get_pcm_data_chunk(self):
+    def get_pcm_data_chunk(self, steg=''):
         chunk = bytes('data', 'ascii')
         chunk_size = int(self.n_samples * self.n_channels * self.bit_depth_rounded / 8)
         chunk += chunk_size.to_bytes(length=4, byteorder='little')
-        interleaved_bytes = np.column_stack(self.data.tolist()).astype(self.np_dt).tobytes()
-        chunk += interleaved_bytes
+        interleaved_bytes = bytearray(np.column_stack(self.data.tolist()).astype(self.np_dt).tobytes())
+        if steg:
+            text = bitarray()
+            text.frombytes(steg.encode('ascii'))
+            bits = text.tolist()
+
+            for i, bit in enumerate(bits):
+                interleaved_bytes[i] = (interleaved_bytes[i] & 254) | bit
+
+        chunk += bytes(interleaved_bytes)
 
         return chunk
 
@@ -132,25 +141,27 @@ class Wave:
             f.write(self.get_header_chunk())
             f.write(self.get_fmt_chunk())
             if self.fmt == 'PCM':
-                f.write(self.get_pcm_data_chunk())
+                f.write(self.get_pcm_data_chunk(steg='THIS is a MESSAGE embedded in AUDIO!!!'))
             elif self.fmt == 'PCM-wavl':
                 f.write(self.get_wavl_chunk())
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description='WAVE Maker')
-    parser.add_argument('file', metavar='File', type=str, nargs=1, help='WAVE file to work on')
-    parser.add_argument('-f', metavar='Format', type=str, nargs='?', const='PCM', help='Compression format (1 is PCM and default)')
-
-    return parser.parse_args()
-
-
 def main():
+    hline = '=' * 30
+    print(f'==== WaveMaker {hline}')
+    print('Options: (Leave blank for defaults)')
+    sample_rate = int(input('Sample Rate in hz (44100)\t>> ') or 44100)
+    bit_depth = int(input('Bit Depth (16)\t\t\t>> ') or 16)
+    n_channels = int(input('Number of Channels (2)\t\t>> ') or 2)
+    duration = int(input('Length in Seconds (3)\t\t>> ') or 3)
+    fmt = (input('Compression Format (PCM)\t>> ') or 'PCM')
+    fname = (input('Output File Name (audio.wav)\t>> ') or 'audio.wav')
+    print(f'==============={hline}')
     start = perf_counter()
-    wavemaker = Wave(bit_depth=16, n_channels=2, duration=3, fmt='PCM-wavl')
+    wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt)
     wavemaker.white_noise()
-    wavemaker.make_file('test3.wav')
-    print(f'Finished in {perf_counter() - start} seconds.')
+    wavemaker.make_file(fname)
+    print(f'Made {fname} in {perf_counter() - start} seconds.')
 
 
 if __name__ == '__main__':
