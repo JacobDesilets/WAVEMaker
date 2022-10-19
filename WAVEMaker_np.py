@@ -25,11 +25,15 @@ class Wave:
         r = (np.random.uniform(-1, 1, (self.n_samples, self.n_channels)) * max_amplitude).astype(self.np_dt)
         self.data = r
 
-    def get_header_chunk(self):
-        chunk = bytes('RIFF', 'ascii')
-        chunk_size = 36 + (self.n_samples * self.n_channels * self.bit_depth_rounded // 8)
+    def get_header_chunk(self, options):
+        chunk = bytes(options['header_chunkid'], 'ascii')
+        options_size = int(options['header_size'])
+        if options_size == -1:
+            chunk_size = 36 + (self.n_samples * self.n_channels * self.bit_depth_rounded // 8)
+        else:
+            chunk_size = options_size
         chunk += chunk_size.to_bytes(length=4, byteorder='little')
-        chunk += bytes('WAVE', 'ascii')
+        chunk += bytes(options['header_formtype'], 'ascii')
 
         return chunk
 
@@ -135,10 +139,10 @@ class Wave:
 
         return chunk
 
-    def make_file(self, fname):
+    def make_file(self, fname, options):
         fp = Path(fname)
         with open(fp, 'wb') as f:
-            f.write(self.get_header_chunk())
+            f.write(self.get_header_chunk(options))
             f.write(self.get_fmt_chunk())
             if self.fmt == 'PCM':
                 f.write(self.get_pcm_data_chunk(steg='THIS is a MESSAGE embedded in AUDIO!!!'))
@@ -147,6 +151,8 @@ class Wave:
 
 
 def main():
+    options = {}
+
     hline = '=' * 30
     print(f'==== WaveMaker {hline}')
     print('Options: (Leave blank for defaults)')
@@ -156,11 +162,33 @@ def main():
     duration = int(input('Length in Seconds (3)\t\t>> ') or 3)
     fmt = (input('Compression Format (PCM)\t>> ') or 'PCM')
     fname = (input('Output File Name (audio.wav)\t>> ') or 'audio.wav')
-    print(f'==============={hline}')
+    junk = (input('Include junk or pad chunk (no)\t>> ') or 'no')
+    print(f'==== Chunk Modifications {hline}')
+    done = False
+    while not done:
+        print('0: Done\n1: Modify header chunk\n2: Modify format chunk\n3:Modify Data Chunk')
+        if fmt == 'PCM-wavl':
+            print('4: Modify list chunk\n5: Modify silent chunk')
+        if junk == 'junk':
+            print('6: Modify junk chunk')
+        elif junk == 'pad':
+            print('7: Modify pad chunk')
+
+        print()
+
+        option = int(input('>>> '))
+        match option:
+            case 0:
+                break
+            case 1:
+                options['header_chunkid'] = (input('Chunk ID (RIFF)\t\t>>> ') or 'RIFF')
+                options['header_size'] = (input('Size (correct value)\t>>> ') or '-1')
+                options['header_formtype'] = (input('Form Type (WAVE)\t>>> ') or 'WAVE')
+
     start = perf_counter()
     wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt)
     wavemaker.white_noise()
-    wavemaker.make_file(fname)
+    wavemaker.make_file(fname, options)
     print(f'Made {fname} in {perf_counter() - start} seconds.')
 
 
