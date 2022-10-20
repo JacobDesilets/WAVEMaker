@@ -75,15 +75,18 @@ class Wave:
 
         return chunk
 
-    def get_wavl_chunk(self, n_silent_samples=20000, no_data=False) -> bytes:
-        chunk = bytes('LIST', 'ascii')
+    def get_wavl_chunk(self, options, n_silent_samples=20000) -> bytes:
+        chunk = bytes(options['wavl_chunkid'], 'ascii')
         subchunks = self.get_slnt_chunk(n_silent_samples)
-        if not no_data:
+        if options['wavl_hasdata'] == 'yes':
             subchunks += self.get_pcm_data_chunk()
+
+        if options['wavl_slntalt'] == 'yes':
+            subchunks += self.get_slnt_chunk(n_silent_samples)
 
         chunk_size = len(subchunks)
         chunk += chunk_size.to_bytes(length=4, byteorder='little')
-        chunk += bytes('wavl', 'ascii')
+        chunk += bytes(options['wavl_formtype'], 'ascii')
         chunk += subchunks
         return chunk
 
@@ -145,9 +148,9 @@ class Wave:
             f.write(self.get_header_chunk(options))
             f.write(self.get_fmt_chunk())
             if self.fmt == 'PCM':
-                f.write(self.get_pcm_data_chunk(steg='THIS is a MESSAGE embedded in AUDIO!!!'))
+                f.write(self.get_pcm_data_chunk())
             elif self.fmt == 'PCM-wavl':
-                f.write(self.get_wavl_chunk())
+                f.write(self.get_wavl_chunk(options))
 
 
 def main():
@@ -184,6 +187,11 @@ def main():
                 options['header_chunkid'] = (input('Chunk ID (RIFF)\t\t>>> ') or 'RIFF')
                 options['header_size'] = (input('Size (correct value)\t>>> ') or '-1')
                 options['header_formtype'] = (input('Form Type (WAVE)\t>>> ') or 'WAVE')
+            case 4:
+                options['wavl_chunkid'] = (input('Chunk ID (LIST)\t\t>>> ') or 'LIST')
+                options['wavl_formtype'] = (input('Form type (wavl)\t\t>>> ') or 'wavl')
+                options['wavl_hasdata'] = (input('Include data [yes or no] (yes)\t\t>>> ') or 'yes')
+                options['wavl_slntalt'] = (input('Include contiguous slnt chunks [yes or no] (no)\t\t>>> ') or 'no')
 
     start = perf_counter()
     wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt)
