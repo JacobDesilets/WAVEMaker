@@ -169,7 +169,7 @@ def main():
     print(f'==== Chunk Modifications {hline}')
     done = False
     while not done:
-        print('0: Done\n1: Modify header chunk\n2: Modify format chunk\n3:Modify Data Chunk')
+        print('0: Done\n1: Modify header chunk\n2: Modify format chunk\n3: Modify Data Chunk')
         if fmt == 'PCM-wavl':
             print('4: Modify list chunk\n5: Modify silent chunk')
         if junk == 'junk':
@@ -182,6 +182,14 @@ def main():
         option = int(input('>>> '))
         match option:
             case 0:
+                options['header_chunkid'] = 'RIFF'
+                options['header_size'] = '-1'
+                options['header_formtype'] = 'WAVE'
+
+                options['wavl_chunkid'] = 'LIST'
+                options['wavl_formtype'] = 'wavl'
+                options['wavl_hasdata'] = 'yes'
+                options['wavl_slntalt'] = 'no'
                 break
             case 1:
                 options['header_chunkid'] = (input('Chunk ID (RIFF)\t\t>>> ') or 'RIFF')
