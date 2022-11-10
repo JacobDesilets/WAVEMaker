@@ -8,7 +8,7 @@ from bitarray import bitarray
 
 
 class Wave:
-    def __init__(self, sample_rate=44100, bit_depth=16, n_channels=2, duration=3, fmt='PCM', junk='no'):
+    def __init__(self, sample_rate=44100, bit_depth=16, n_channels=2, duration=3, fmt='PCM', junk='no', fact='no'):
         self.sample_rate = sample_rate                      # Sample rate in Hz
         self.bit_depth = bit_depth                          # Bits per sample
         self.n_channels = n_channels                        # Channel count
@@ -21,6 +21,7 @@ class Wave:
         self.data = np.zeros((self.n_samples, self.n_channels), dtype=self.np_dt)
 
         self.junk = junk
+        self.fact = fact
 
     def white_noise(self):
         max_amplitude = ((1 << self.bit_depth) / 2) - 1
@@ -60,11 +61,11 @@ class Wave:
 
         return chunk
 
-    def get_fact_chunk(self, n_samples_overwrite=0):
+    def get_fact_chunk(self, options):
         chunk = bytes('fact', 'ascii')
         chunk += int(4).to_bytes(length=4, byteorder='little')
-        if n_samples_overwrite:
-            chunk += n_samples_overwrite.to_bytes(length=4, byteorder='little')
+        if options['fact-samplelen'] != -1:
+            chunk += int(options['fact-samplelen']).to_bytes(length=4, byteorder='little')
         else:
             chunk += self.n_samples.to_bytes(length=4, byteorder='little')
 
@@ -77,14 +78,14 @@ class Wave:
 
         return chunk
 
-    def get_wavl_chunk(self, options, n_silent_samples=20000) -> bytes:
+    def get_wavl_chunk(self, options) -> bytes:
         chunk = bytes(options['wavl_chunkid'], 'ascii')
-        subchunks = self.get_slnt_chunk(n_silent_samples)
+        subchunks = self.get_slnt_chunk(options)
         if options['wavl_hasdata'] == 'yes':
             subchunks += self.get_pcm_data_chunk()
 
         if options['wavl_slntalt'] == 'yes':
-            subchunks += self.get_slnt_chunk(n_silent_samples)
+            subchunks += self.get_slnt_chunk(options)
 
         chunk_size = len(subchunks)
         chunk += chunk_size.to_bytes(length=4, byteorder='little')
@@ -161,6 +162,9 @@ class Wave:
         with open(fp, 'wb') as f:
             f.write(self.get_header_chunk(options))
             f.write(self.get_fmt_chunk())
+            if self.fact == 'yes':
+                f.write(self.get_fact_chunk(options))
+
             if self.fmt == 'PCM':
                 f.write(self.get_pcm_data_chunk())
             elif self.fmt == 'PCM-wavl':
@@ -185,6 +189,7 @@ def main():
     fmt = (input('Compression Format (PCM)\t>> ') or 'PCM')
     fname = (input('Output File Name (audio.wav)\t>> ') or 'audio.wav')
     junk = (input('Include junk or pad chunk (no)\t>> ') or 'no')
+    fact = (input('Include fact chunk (no)\t>> ') or 'no')
     print(f'==== Chunk Modifications {hline}')
     done = False
     while not done:
@@ -195,6 +200,8 @@ def main():
             print('6: Modify junk chunk')
         elif junk == 'pad':
             print('7: Modify pad chunk')
+
+        print('8: Modify fact chunk')
 
         print()
 
@@ -219,7 +226,9 @@ def main():
                 options['pad-hiddentext'] = ''
 
                 options['slnt-chunkid'] = 'slnt'
-                options['slnt-nsamples'] = '4'
+                options['slnt-nsamples'] = '20000'
+
+                options['fact-samplelen'] = '-1'
 
                 break
             case 1:
@@ -233,7 +242,7 @@ def main():
                 options['wavl_slntalt'] = (input('Include contiguous slnt chunks [yes or no] (no)\t\t>>> ') or 'no')
             case 5:
                 options['slnt-chunkid'] = (input('Chunk ID (slnt)\t\t>>> ') or 'slnt')
-                options['slnt-nsamples'] = (input('Number of silent samples (4)\t\t>>> ') or '4')
+                options['slnt-nsamples'] = (input('Number of silent samples (20000)\t\t>>> ') or '20000')
             case 6:
                 options['junk-chunkid'] = (input('Chunk ID (JUNK)\t\t>>> ') or 'JUNK')
                 options['junk-size'] = (input('Size (correct value)\t\t>>> ') or '-1')
@@ -242,9 +251,11 @@ def main():
                 options['pad-chunkid'] = (input('Chunk ID (PAD )\t\t>>> ') or 'PAD ')
                 options['pad-size'] = (input('Size (correct value)\t\t>>> ') or '-1')
                 options['pad-hiddentext'] = (input('Hidden text (none)\t\t>>> ') or '')
+            case 8:
+                options['fact-samplelen'] = (input('Sample length (correct value)\t\t>>> ') or '-1')
 
     start = perf_counter()
-    wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt)
+    wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt, fact)
     wavemaker.white_noise()
     wavemaker.make_file(fname, options)
     print(f'Made {fname} in {perf_counter() - start} seconds.')
