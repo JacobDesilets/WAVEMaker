@@ -39,7 +39,7 @@ def read_steg(fname, output):
 def get_args():
     parser = argparse.ArgumentParser(description='WAVE Steganography Writer')
     parser.add_argument('WAVE file', metavar='wf', type=str, nargs=1, help='WAVE file to embed information in')
-    parser.add_argument('Output file', metavar='of', type=str, nargs=1, help='Input file to embed in WAVE file')
+    parser.add_argument('Output file', metavar='of', type=str, nargs=1, help='output file')
 
     return parser.parse_args()
 

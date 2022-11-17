@@ -82,7 +82,7 @@ class Wave:
         chunk = bytes(options['wavl_chunkid'], 'ascii')
         subchunks = self.get_slnt_chunk(options)
         if options['wavl_hasdata'] == 'yes':
-            subchunks += self.get_pcm_data_chunk()
+            subchunks += self.get_pcm_data_chunk(options)
 
         if options['wavl_slntalt'] == 'yes':
             subchunks += self.get_slnt_chunk(options)
@@ -140,18 +140,11 @@ class Wave:
 
         return chunk
 
-    def get_pcm_data_chunk(self, steg=''):
-        chunk = bytes('data', 'ascii')
+    def get_pcm_data_chunk(self, options):
+        chunk = bytes(options['data-chunkid'], 'ascii')
         chunk_size = int(self.n_samples * self.n_channels * self.bit_depth_rounded / 8)
         chunk += chunk_size.to_bytes(length=4, byteorder='little')
         interleaved_bytes = bytearray(np.column_stack(self.data.tolist()).astype(self.np_dt).tobytes())
-        if steg:
-            text = bitarray()
-            text.frombytes(steg.encode('ascii'))
-            bits = text.tolist()
-
-            for i, bit in enumerate(bits):
-                interleaved_bytes[i] = (interleaved_bytes[i] & 254) | bit
 
         chunk += bytes(interleaved_bytes)
 
@@ -166,7 +159,7 @@ class Wave:
                 f.write(self.get_fact_chunk(options))
 
             if self.fmt == 'PCM':
-                f.write(self.get_pcm_data_chunk())
+                f.write(self.get_pcm_data_chunk(options))
             elif self.fmt == 'PCM-wavl':
                 f.write(self.get_wavl_chunk(options))
 
@@ -192,6 +185,32 @@ def main():
     fact = (input('Include fact chunk (no)\t>> ') or 'no')
     print(f'==== Chunk Modifications {hline}')
     done = False
+
+
+    options['header_chunkid'] = 'RIFF'
+    options['header_size'] = '-1'
+    options['header_formtype'] = 'WAVE'
+
+    options['data-chunkid'] = 'data'
+
+    options['wavl_chunkid'] = 'LIST'
+    options['wavl_formtype'] = 'wavl'
+    options['wavl_hasdata'] = 'yes'
+    options['wavl_slntalt'] = 'no'
+
+    options['junk-chunkid'] = 'JUNK'
+    options['junk-size'] = '-1'
+    options['junk-hiddentext'] = ''
+
+    options['pad-chunkid'] = 'JUNK'
+    options['pad-size'] = '-1'
+    options['pad-hiddentext'] = ''
+
+    options['slnt-chunkid'] = 'slnt'
+    options['slnt-nsamples'] = '20000'
+
+    options['fact-samplelen'] = '-1'
+
     while not done:
         print('0: Done\n1: Modify header chunk\n2: Modify format chunk\n3: Modify Data Chunk')
         if fmt == 'PCM-wavl':
@@ -200,41 +219,22 @@ def main():
             print('6: Modify junk chunk')
         elif junk == 'pad':
             print('7: Modify pad chunk')
-
-        print('8: Modify fact chunk')
+        if fact == 'yes':
+            print('8: Modify fact chunk')
 
         print()
 
         option = int(input('>>> '))
+
         match option:
             case 0:
-                options['header_chunkid'] = 'RIFF'
-                options['header_size'] = '-1'
-                options['header_formtype'] = 'WAVE'
-
-                options['wavl_chunkid'] = 'LIST'
-                options['wavl_formtype'] = 'wavl'
-                options['wavl_hasdata'] = 'yes'
-                options['wavl_slntalt'] = 'no'
-
-                options['junk-chunkid'] = 'JUNK'
-                options['junk-size'] = '-1'
-                options['junk-hiddentext'] = ''
-
-                options['pad-chunkid'] = 'JUNK'
-                options['pad-size'] = '-1'
-                options['pad-hiddentext'] = ''
-
-                options['slnt-chunkid'] = 'slnt'
-                options['slnt-nsamples'] = '20000'
-
-                options['fact-samplelen'] = '-1'
-
                 break
             case 1:
                 options['header_chunkid'] = (input('Chunk ID (RIFF)\t\t>>> ') or 'RIFF')
                 options['header_size'] = (input('Size (correct value)\t>>> ') or '-1')
                 options['header_formtype'] = (input('Form Type (WAVE)\t>>> ') or 'WAVE')
+            case 3:
+                options['data-chunkid'] = (input('Chunk ID (data)\t\t>>> ') or 'data')
             case 4:
                 options['wavl_chunkid'] = (input('Chunk ID (LIST)\t\t>>> ') or 'LIST')
                 options['wavl_formtype'] = (input('Form type (wavl)\t\t>>> ') or 'wavl')
@@ -255,7 +255,7 @@ def main():
                 options['fact-samplelen'] = (input('Sample length (correct value)\t\t>>> ') or '-1')
 
     start = perf_counter()
-    wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt, fact)
+    wavemaker = Wave(sample_rate, bit_depth, n_channels, duration, fmt, junk, fact)
     wavemaker.white_noise()
     wavemaker.make_file(fname, options)
     print(f'Made {fname} in {perf_counter() - start} seconds.')
